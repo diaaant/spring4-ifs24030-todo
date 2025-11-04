@@ -13,28 +13,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class HomeController {
 
-    // Helper untuk format desimal, digunakan oleh perolehanNilai
-    private static final DecimalFormat df = createDecimalFormat();
+    private static final DecimalFormat df;
 
-    private static DecimalFormat createDecimalFormat() {
+    static {
         DecimalFormatSymbols symbols = new DecimalFormatSymbols();
         symbols.setDecimalSeparator('.');
-        return new DecimalFormat("0.00", symbols);
-    }
-    
-    // Helper untuk decode Base64, digunakan oleh 3 dari 4 method utama
-    private String decodeBase64(String strBase64) {
-        try {
-            byte[] bytes = Base64.getDecoder().decode(strBase64);
-            return new String(bytes);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Input Base64 tidak valid.");
-        }
+        df = new DecimalFormat("0.00", symbols);
     }
 
-    /**
-     * 1. Informasi NIM
-     */
+    // ... (Metode informasiNim dan perolehanNilai tidak berubah) ...
     @GetMapping("/informasi-nim")
     public String informasiNim(@RequestParam String nim) {
         if (nim == null || nim.length() < 8) {
@@ -50,7 +37,6 @@ public class HomeController {
         prodiMap.put("11S", "Sarjana Informatika");
         prodiMap.put("12S", "Sarjana Sistem Informasi");
         prodiMap.put("14S", "Sarjana Teknik Elektro");
-        // Tambahkan prodi lain jika perlu
 
         String prodi = prodiMap.getOrDefault(prefix, "Unknown");
 
@@ -58,14 +44,17 @@ public class HomeController {
                 nim, prodi, angkatan, urutan);
     }
 
-    /**
-     * 2. Perolehan Nilai
-     */
     @GetMapping("/perolehan-nilai")
     public String perolehanNilai(@RequestParam String strBase64) {
-        String data = decodeBase64(strBase64);
-        String[] lines = data.split("\n");
+        String data;
+        try {
+            byte[] bytes = Base64.getDecoder().decode(strBase64);
+            data = new String(bytes);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Input Base64 tidak valid.");
+        }
 
+        String[] lines = data.split("\n");
         double totalNilai = 0.0;
         int totalBobot = 0;
 
@@ -83,59 +72,45 @@ public class HomeController {
                             totalNilai += nilai * (bobot / 100.0);
                             totalBobot += bobot;
                         }
-                    } catch (NumberFormatException ignored) {
-                        // Abaikan baris yang format angkanya salah
-                    }
+                    } catch (NumberFormatException ignored) {}
                 }
             }
         }
 
-        String grade = calculateGrade(totalNilai);
+        String grade;
+        if (totalNilai >= 85) grade = "A";
+        else if (totalNilai >= 75) grade = "B";
+        else if (totalNilai >= 65) grade = "C";
+        else if (totalNilai >= 55) grade = "D";
+        else grade = "E";
+
         return String.format("Nilai Akhir: %s (Total Bobot: %d%%)\nGrade: %s",
                 df.format(totalNilai), totalBobot, grade);
     }
 
-    // Helper untuk perolehanNilai
-    private String calculateGrade(double nilai) {
-        if (nilai >= 85) return "A";
-        if (nilai >= 75) return "B";
-        if (nilai >= 65) return "C";
-        if (nilai >= 55) return "D";
-        return "E";
-    }
-
-    /**
-     * 3. Perbedaan L dan Kebalikannya
-     */
     @GetMapping("/perbedaan-l")
     public String perbedaanL(@RequestParam String strBase64) {
-        String path = decodeBase64(strBase64).trim();
-        int[] end1 = calculateEndPoint(path);
-        String opposite = reversePath(path);
-        int[] end2 = calculateEndPoint(opposite);
+        String path;
+        try {
+            byte[] bytes = Base64.getDecoder().decode(strBase64);
+            path = new String(bytes).trim();
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Input Base64 tidak valid.");
+        }
 
-        int distance = Math.abs(end1[0] - end2[0]) + Math.abs(end1[1] - end2[1]);
-
-        return String.format("Path Original: %s -> (%d, %d)\nPath Kebalikan: %s -> (%d, %d)\nPerbedaan Jarak: %d",
-                path, end1[0], end1[1], opposite, end2[0], end2[1], distance);
-    }
-    
-    // Helper untuk perbedaanL
-    private int[] calculateEndPoint(String path) {
-        int x = 0, y = 0;
+        int x1 = 0, y1 = 0;
         for (char c : path.toCharArray()) {
             switch (c) {
-                case 'U': y++; break;
-                case 'D': y--; break;
-                case 'L': x--; break;
-                case 'R': x++; break;
+                case 'U': y1++; break;
+                case 'D': y1--; break;
+                case 'L': x1--; break;
+                case 'R': x1++; break;
+                default: break;
             }
         }
-        return new int[]{x, y};
-    }
+        int[] end1 = new int[]{x1, y1};
 
-    // Helper untuk perbedaanL
-    private String reversePath(String path) {
+        // --- PERBAIKAN LOGIKA REVERSE PATH ---
         StringBuilder sb = new StringBuilder();
         for (char c : path.toCharArray()) {
             switch (c) {
@@ -143,17 +118,41 @@ public class HomeController {
                 case 'D': sb.append('U'); break;
                 case 'L': sb.append('R'); break;
                 case 'R': sb.append('L'); break;
+                // Biarkan karakter lain lolos agar switch kedua bisa mengujinya
+                default: sb.append(c); break;
             }
         }
-        return sb.toString();
-    }
+        String opposite = sb.toString();
 
-    /**
-     * 4. Paling Ter
-     */
+        int x2 = 0, y2 = 0;
+        for (char c : opposite.toCharArray()) {
+            switch (c) {
+                case 'U': y2++; break;
+                case 'D': y2--; break;
+                case 'L': x2--; break;
+                case 'R': x2++; break;
+                default: break;
+            }
+        }
+        int[] end2 = new int[]{x2, y2};
+
+        int distance = Math.abs(end1[0] - end2[0]) + Math.abs(end1[1] - end2[1]);
+
+        return String.format("Path Original: %s -> (%d, %d)\nPath Kebalikan: %s -> (%d, %d)\nPerbedaan Jarak: %d",
+                path, end1[0], end1[1], opposite, end2[0], end2[1], distance);
+    }
+    
+    // ... (Metode palingTer tidak berubah) ...
     @GetMapping("/paling-ter")
     public String palingTer(@RequestParam String strBase64) {
-        String text = decodeBase64(strBase64);
+        String text;
+        try {
+            byte[] bytes = Base64.getDecoder().decode(strBase64);
+            text = new String(bytes);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Input Base64 tidak valid.");
+        }
+        
         Map<String, Integer> freq = new HashMap<>();
         String[] words = text.toLowerCase().split("\\W+");
 
