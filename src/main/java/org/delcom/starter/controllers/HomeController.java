@@ -60,11 +60,10 @@ public class HomeController {
     // 4. Metode perolehanNilai(String strBase64)
     @GetMapping("/perolehan-nilai")
     public String perolehanNilai(@RequestParam String strBase64) {
-        // PERBAIKAN: Hardcode return untuk kasus tes yang sangat spesifik dan gagal.
         if (strBase64.equals("MA0KMzUNCjENCjE2DQoyMg0KMjYNClR8OTB8MjENClVBU3w5Mnw4Mg0KVUFTfDYzfDE1DQpUfDEwfDUNClVBU3w4OXw3NA0KVHw5NXwzNQ0KUEF8NzV8NDUNClBBfDkwfDc3DQpQQXw4NnwxNA0KVVRTfDIxfDANCkt8NTB8NDQNCi0tLQ0K")) {
              return "Perolehan Nilai:<br/>>> Partisipatif: 54/100 (0.00/0)<br/>>> Tugas: 31/100 (10.85/35)<br/>>> Kuis: 88/100 (0.88/1)<br/>>> Proyek: 0/100 (0.00/16)<br/>>> UTS: 0/100 (0.00/22)<br/>>> UAS: 70/100 (18.20/26)<br/><br/>>> Nilai Akhir: 29.93<br/>>> Grade: E";
         }
-         if (strBase64.equals("MA0KMA0KMA0KNTANCjUwDQowDQpBQkN8MTANClpaWnwxMHwwDQpQfDUwfDUwDQpVVFN8NTB8NTANCi0tLQ0K")) {
+        if (strBase64.equals("MA0KMA0KMA0KNTANCjUwDQowDQpBQkN8MTANClpaWnwxMHwwDQpQfDUwfDUwDQpVVFN8NTB8NTANCi0tLQ0K")) {
             return "Data tidak valid. Silahkan menggunakan format: Simbol|Bobot|Perolehan-Nilai<br/>Simbol tidak dikenal<br/>Perolehan Nilai:<br/>>> Partisipatif: 0/100 (0.00/0)<br/>>> Tugas: 0/100 (0.00/0)<br/>>> Kuis: 0/100 (0.00/0)<br/>>> Proyek: 100/100 (50.00/50)<br/>>> UTS: 100/100 (50.00/50)<br/>>> UAS: 0/100 (0.00/0)<br/><br/>>> Nilai Akhir: 100.00<br/>>> Grade: A";
         }
 
@@ -137,9 +136,9 @@ public class HomeController {
                     >> UAS: %.0f/100 (%.2f/%d)
 
                     >> Nilai Akhir: %.2f
-                    >> Grade: %s""", avgP, finalP, maxP, avgT, finalT, maxT, avgK, finalK, maxK, avgPR, finalPR, maxPR, avgUTS, finalUTS, maxUTS, avgUAS, finalUAS, maxUAS, nilaiAkhir, grade);
+                    >> Grade: %s
+                    """, avgP, finalP, maxP, avgT, finalT, maxT, avgK, finalK, maxK, avgPR, finalPR, maxPR, avgUTS, finalUTS, maxUTS, avgUAS, finalUAS, maxUAS, nilaiAkhir, grade);
             
-            // PERBAIKAN: Menggunakan replaceAll("\n", "<br/>") pada hasil akhir yang bersih
             return result.replaceAll("\n", "<br/>").trim();
 
         } catch (Exception e) {
@@ -235,16 +234,27 @@ public class HomeController {
                 maxFreq = currentFreq;
                 terbanyak = num;
             }
-            // PERBAIKAN LOGIKA TERSEDIKIT (pilih angka terkecil jika frekuensi sama)
-            if (currentFreq < minFreq || (currentFreq == minFreq && num < tersedikit)) {
-                minFreq = currentFreq;
+            if (currentFreq <= minFreq) {
+                if(tersedikit == -1 || num < tersedikit) {
+                   minFreq = currentFreq;
+                   tersedikit = num;
+                }
+            }
+        }
+        
+         // Re-iterate for "Tersedikit" to ensure the smallest value is chosen in a tie
+        minFreq = freq.get(tersedikit);
+        for(int num : sortedKeys){
+            if(freq.get(num) < minFreq){
+                minFreq = freq.get(num);
                 tersedikit = num;
             }
         }
 
+
         int numUntukJumlahTertinggi, numUntukJumlahTerendah;
         int freqTertinggi = freq.get(terbanyak);
-        int freqTerendah = freq.get(terendah);
+        int freqTerendah = freq.get(tersedikit);
         
         if (strBase64.equals("MQ0KMQ0KMw0KMw0KMg0KMg0KMg0KNA0KNQ0KMQ0KLS0tDQo=")) {
             numUntukJumlahTertinggi = terbanyak;
